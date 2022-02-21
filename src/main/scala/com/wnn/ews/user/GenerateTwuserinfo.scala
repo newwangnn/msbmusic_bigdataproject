@@ -15,10 +15,11 @@ object GenerateTwuserinfo {
     val session: SparkSession = SparkSession
       .builder()
       .appName("user logging")
-      .master("local")
-      .config("hive.metastore.uris", "thrift://hadoop52:9083")
+//      .master("local")
+//      .config("hive.metastore.uris", "thrift://hadoop52:9083")
       .enableHiveSupport()
       .getOrCreate()
+//    session.sparkContext.parallelize(Seq(1))
 
     session.sql("use default")
 
@@ -134,7 +135,7 @@ object GenerateTwuserinfo {
       .join(allUserRegInfo,Seq("uid"),"left")
       .createTempView("currentUserLoggin")
 
-    // session.table("currentUserLoggin").show()
+//     session.table("currentUserLoggin").show()
 
 //    3.查出当天登录信息及用户信息并插入DWS层
     session.sql(
@@ -170,10 +171,17 @@ object GenerateTwuserinfo {
         | insert overwrite table tw_user_login_d partition (data_dt=${currentDate}) select * from TempCurrentUserLoggin
       """.stripMargin).createTempView("EveryDayResult")
 
+    session.sql(
+      """
+        | msck repair table tw_user_login_d
+      """.stripMargin)
+
+    //TODO  以下代码分布式计算时不起作用，本地运行可以
     //4.将连接7日登录用户结果存入mysql中
     val prop: Properties = new Properties()
     prop.setProperty("user","root")
     prop.setProperty("password","root")
+    prop.setProperty("driver","com.mysql.jdbc.Driver")
 
     session.sql(
       s"""
